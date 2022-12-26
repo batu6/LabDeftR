@@ -2,7 +2,8 @@ library(shiny)
 library(tidyverse)
 library(DT)
 
-
+## data table height decrease
+## maybe allow multiple inputs to exp group, since in one experiment one can test multiple stuff.
 ## button color
 ## Ability to add more columns or remove those unused?
 
@@ -23,7 +24,7 @@ ui <- fluidPage(
                         textInput("expIDM", label = "Experiment Group", value = "")
                  ),
                  column(6,
-                        selectizeInput("expID",'.', c(Choose=''),multiple = F)
+                        selectizeInput("expID",'.', c(Choose=''),multiple = T)
                  )
                  
                ),
@@ -165,7 +166,7 @@ server <- function(input, output, session) {
                          selected = ""
     )
     updateSelectizeInput(session, "expID",
-                         choices = file$Exp_group,
+                         choices = unlist(file$Exp_group),
                          selected = ""
     )
     updateSelectizeInput(session, "inhibitor",
@@ -189,7 +190,6 @@ server <- function(input, output, session) {
                          selected = ""
     )
     
-print(unlist(file$Mouse_lines))
     
       pastexpTable(file)
 
@@ -205,7 +205,14 @@ print(unlist(file$Mouse_lines))
       pastexpTable()
     }
   
-  })
+  }, options = list(columnDefs = list(list(
+    targets = 10:13,
+    render = JS(
+      "function(data, type, row, meta) {",
+      "return type === 'display' && data.length > 50 ?",
+      "'<span title=\"' + data + '\">' + data.substr(0, 50) + '...</span>' : data;",
+      "}")
+  ))))
   
   observeEvent(input$mouseM,{
     
@@ -221,11 +228,11 @@ print(unlist(file$Mouse_lines))
   
   observeEvent(input$expIDM,{
     
-    v <- input$expIDM
+    v <- str_split(input$expIDM,pattern = " ")[[1]]
     
     updateSelectizeInput(session, "expID",
                          choices = c(unlist(pastexpTable()$Exp_group), v),
-                         selected = v
+                         selected = c(input$expID,v)
     )
     
     
@@ -302,7 +309,7 @@ print(unlist(file$Mouse_lines))
     if(input$exp != ""){
       
       inpast <- tibble(Experiment = input$exp,
-                       Exp_group = input$expID,
+                       Exp_group = list(input$expID),
                        Mouse_lines = list(input$mouse),
                        Inhibitors = list(input$inhibitor),
                        Dilutions = list(input$dilution),
@@ -323,8 +330,6 @@ print(unlist(file$Mouse_lines))
           pastexpTable(inpast)
           
         } else{
-          print(inpast)
-          print(pastexpTable)
           
           combined <- bind_rows(inpast, pastexpTable())
           
